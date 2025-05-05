@@ -12,20 +12,33 @@ def extract_video_id(url):
 
 def get_transcript(video_id):
     try:
-        # Intenta obtener el transcript en el idioma original
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-    except (NoTranscriptFound, TranscriptsDisabled, CouldNotRetrieveTranscript):
-        try:
-            # Intenta obtener un transcript traducido si el original no está
-            transcript = YouTubeTranscriptApi.list_transcripts(video_id).find_transcript(['en']).fetch()
-        except:
-            return "Transcript not available"
-    except VideoUnavailable:
-        return "Video unavailable"
-    except Exception as e:
-        return f"Error getting transcript: {str(e)}"
+        transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
 
-    return " ".join([entry['text'] for entry in transcript])
+        # Intenta encontrar el transcript en español o inglés
+        for lang in ['es', 'en']:
+            try:
+                transcript = transcripts.find_transcript([lang]).fetch()
+                return " ".join([entry['text'] for entry in transcript])
+            except:
+                continue
+
+        # Si no se encuentra ninguno de esos, usa el primero disponible
+        try:
+            transcript = transcripts._manually_created_transcripts[0].fetch()
+            return " ".join([entry['text'] for entry in transcript])
+        except:
+            pass
+
+        try:
+            transcript = transcripts._generated_transcripts[0].fetch()
+            return " ".join([entry['text'] for entry in transcript])
+        except:
+            pass
+
+        return "Transcript not available"
+
+    except Exception as e:
+        return f"Transcript error: {str(e)}"
 
 
 def get_video_info(url):
